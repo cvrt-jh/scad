@@ -1,0 +1,451 @@
+# OpenSCAD Clean Code Guidelines
+
+## File Organization
+
+```scad
+// File: my_project.scad
+// Description: A parametric widget with adjustable dimensions
+// Author: Your Name
+// License: MIT
+// Version: 1.0
+// Last Updated: 2025-03-08
+
+// Include external libraries
+include <MCAD/units.scad>
+use <my_utilities.scad>
+
+// Global configuration variables
+$fn = 50;  // Fragment number for curves
+
+/* ===== PARAMETERS ===== */
+// Main dimensions
+width = 100;     // [mm] Total width of the model
+height = 50;     // [mm] Total height of the model
+thickness = 3;   // [mm] Wall thickness
+
+// Feature-specific parameters
+hole_diameter = 5;  // [mm] Diameter of mounting holes
+corner_radius = 2;  // [mm] Radius for rounded corners
+
+/* ===== MODULES ===== */
+// Main components and assembly below...
+```
+
+## Naming Conventions
+
+```scad
+// Variables - lowercase with underscores
+wall_thickness = 2.5;
+hole_diameter = 5;
+
+// Constants - uppercase with underscores
+SCREW_DIAMETER = 3.2;
+PI = 3.14159;
+
+// Modules - lowercase with underscores
+module rounded_cube(size, radius) {
+    // ...implementation...
+}
+
+// Functions - camelCase
+function calculateOffset(diameter, spacing) = diameter * spacing / 2;
+```
+
+## Module Structure
+
+```scad
+// Simple module with well-defined purpose
+module mounting_hole(diameter, height) {
+    cylinder(d=diameter, h=height);
+}
+
+// Complex module with clear parameter documentation
+module rounded_box(
+    // Required parameters
+    width,   // Width of the box [mm]
+    height,  // Height of the box [mm]
+    depth,   // Depth of the box [mm]
+    // Optional parameters with defaults
+    radius = 2,    // Corner radius [mm]
+    center = false // Whether to center the box
+) {
+    // Implementation...
+    translate([center ? -width/2 : 0, 
+               center ? -height/2 : 0, 
+               center ? -depth/2 : 0]) {
+        // ... shape definition ...
+    }
+}
+```
+
+## Indentation and Formatting
+
+```scad
+// Consistent indentation and bracket style
+module complex_shape() {
+    union() {
+        cube([10, 10, 1]);
+        
+        translate([0, 0, 1]) {
+            difference() {
+                cylinder(r=5, h=10);
+                
+                // Clear inner area
+                translate([0, 0, -1])
+                    cylinder(r=4, h=12);
+            }
+        }
+    }
+}
+
+// Long operation chains with clear indentation
+module tapered_cylinder(d1, d2, h) {
+    cylinder(d1=d1, d2=d2, h=h)
+        translate([0, 0, h])
+            sphere(d=d2);
+}
+```
+
+## Modular Design Patterns
+
+```scad
+// Utility module for reusable functionality
+module rounded_corner(radius, height) {
+    cylinder(r=radius, h=height);
+}
+
+// Composition using utility modules
+module rounded_rectangle(width, height, thickness, radius) {
+    hull() {
+        for (x = [radius, width - radius]) {
+            for (y = [radius, height - radius]) {
+                translate([x, y, 0])
+                    rounded_corner(radius, thickness);
+            }
+        }
+    }
+}
+
+// Component module building on utilities
+module enclosure_base(width, height, thickness) {
+    difference() {
+        rounded_rectangle(width, height, thickness, 5);
+        
+        // Interior cutout
+        translate([thickness, thickness, -1])
+            rounded_rectangle(
+                width - 2*thickness, 
+                height - 2*thickness, 
+                thickness + 2, 
+                3
+            );
+    }
+}
+```
+
+## Parametric Design
+
+```scad
+// Parameter definitions with defaults and comments
+/* Parameters */
+// Physical dimensions
+width = 100;        // [mm] Total width
+height = 50;        // [mm] Total height
+wall = 2;           // [mm] Wall thickness
+
+// Features
+holes = true;       // Enable mounting holes
+hole_d = 3.2;       // [mm] Hole diameter
+hole_margin = 5;    // [mm] Margin from edges
+
+// Calculations derived from parameters
+hole_positions = [
+    [hole_margin, hole_margin],
+    [width - hole_margin, hole_margin],
+    [width - hole_margin, height - hole_margin],
+    [hole_margin, height - hole_margin]
+];
+
+// Implementation using parameters
+module base_plate() {
+    difference() {
+        cube([width, height, wall]);
+        
+        if (holes) {
+            for (pos = hole_positions) {
+                translate([pos[0], pos[1], -1])
+                    cylinder(d=hole_d, h=wall+2);
+            }
+        }
+    }
+}
+```
+
+## Comments and Documentation
+
+```scad
+/**
+ * Creates a gear with specified parameters
+ * 
+ * @param num_teeth    Number of teeth
+ * @param circular_pitch   Circular pitch
+ * @param pressure_angle  Pressure angle in degrees
+ * @param clearance      Clearance
+ * 
+ * @example
+ *   spur_gear(teeth=20, circular_pitch=5);
+ */
+module spur_gear(
+    num_teeth=15,
+    circular_pitch=5,
+    pressure_angle=20,
+    clearance=0.2
+) {
+    // Calculated properties
+    pitch_diameter = num_teeth * circular_pitch / PI;
+    
+    // Implementation
+    // ...
+}
+
+// Section separators for lengthy files
+/* ===== UTILITY FUNCTIONS ===== */
+
+/* ===== BASIC SHAPES ===== */
+
+/* ===== COMPONENT MODULES ===== */
+
+/* ===== ASSEMBLIES ===== */
+```
+
+## Boolean Operations
+
+```scad
+// Clear naming for boolean operations
+module mounting_bracket() {
+    difference() {
+        // Base shape
+        base_shape();
+        
+        // Subtractions grouped by purpose
+        // Mounting holes
+        mounting_holes();
+        
+        // Cable passages
+        cable_passages();
+    }
+}
+
+// Use union() explicitly for clarity
+module complex_part() {
+    union() {
+        // Main body
+        body();
+        
+        // Add reinforcements
+        reinforcements();
+        
+        // Add mounting points
+        mounting_points();
+    }
+}
+```
+
+## Performance Optimization
+
+```scad
+// Use modules for repeated elements instead of loops where possible
+module hole_pattern(cols, rows, spacing_x, spacing_y, diameter) {
+    for (x = [0:cols-1], y = [0:rows-1]) {
+        translate([x * spacing_x, y * spacing_y, 0])
+            cylinder(d=diameter, h=10);
+    }
+}
+
+// Cache complex calculations
+function gear_radius(teeth, pitch) = let(
+    radius = teeth * pitch / (2 * PI)
+) radius;
+
+// Use 2D operations when possible, then extrude
+module efficient_shape(width, height, depth) {
+    // More efficient than 3D operations
+    linear_extrude(height=depth) {
+        square([width, height]);
+    }
+}
+
+// Appropriate $fn usage
+module detailed_part() {
+    // Override global $fn for specific features
+    sphere(r=10, $fn=100);  // Higher detail for visible surfaces
+    
+    // Use lower $fn for hidden or less important features
+    translate([0, 0, 20])
+        cylinder(r=2, h=5, $fn=20);  // Less detail for small holes
+}
+```
+
+## Version Control and Collaboration
+
+```scad
+// Version information
+/* 
+ * Component: Mounting Bracket
+ * Version: 1.2
+ * Last modified: 2025-03-08
+ * Changes: 
+ *   - Added chamfers to edges
+ *   - Increased wall thickness to 2.5mm
+ *   - Fixed hole alignment issue
+ */
+
+// Feature flags for experimental features
+enable_new_latch = false;  // Set to true to enable new latch design
+
+// Conditionally include experimental features
+if (enable_new_latch) {
+    new_latch_mechanism();
+} else {
+    standard_latch_mechanism();
+}
+```
+
+## Testing and Debugging
+
+```scad
+// Debug visualization module
+module show_mounting_points(enabled=true) {
+    if (enabled) {
+        color("red", 0.5) {
+            for (pos = mounting_positions) {
+                translate(pos)
+                    sphere(r=1);
+            }
+        }
+    }
+}
+
+// Conditional rendering for testing
+testing = true;
+
+if (testing) {
+    // Show cross-section for testing
+    difference() {
+        complete_assembly();
+        translate([-50, 0, -50])
+            cube([100, 100, 100]);
+    }
+} else {
+    // Normal rendering
+    complete_assembly();
+}
+```
+
+## Project Structure Example
+
+```
+project/
+├── main.scad              # Main assembly file
+├── parameters.scad        # Centralized parameters
+├── components/
+│   ├── base.scad          # Base component
+│   ├── lid.scad           # Lid component
+│   └── internal.scad      # Internal components
+├── lib/
+│   ├── utilities.scad     # Custom utility functions
+│   └── threads.scad       # Thread generation
+└── tests/
+    ├── test_fit.scad      # Fit testing
+    └── cross_sections.scad # Cross-section views
+```
+
+## Example of a Complete Module
+
+```scad
+/**
+ * Creates a box with rounded corners and optional lid
+ * 
+ * @param width      Width of the box [mm]
+ * @param depth      Depth of the box [mm]
+ * @param height     Height of the box [mm]
+ * @param thickness  Wall thickness [mm]
+ * @param radius     Corner radius [mm]
+ * @param include_lid Whether to include a lid
+ */
+module rounded_box(
+    width,
+    depth,
+    height,
+    thickness = 2,
+    radius = 5,
+    include_lid = true
+) {
+    // Error checking
+    assert(width > 0, "Width must be positive");
+    assert(depth > 0, "Depth must be positive");
+    assert(height > 0, "Height must be positive");
+    assert(thickness > 0, "Thickness must be positive");
+    assert(radius > 0, "Radius must be positive");
+    
+    // Derived values
+    inner_width = width - 2 * thickness;
+    inner_depth = depth - 2 * thickness;
+    inner_height = height - thickness;
+    
+    // Box base
+    difference() {
+        // Outer shell
+        hull() {
+            for (x = [radius, width - radius]) {
+                for (y = [radius, depth - radius]) {
+                    translate([x, y, radius])
+                        sphere(r = radius);
+                    
+                    translate([x, y, height - radius])
+                        sphere(r = radius);
+                }
+            }
+        }
+        
+        // Inner cutout
+        translate([thickness, thickness, thickness])
+            hull() {
+                for (x = [radius, inner_width - radius]) {
+                    for (y = [radius, inner_depth - radius]) {
+                        translate([x, y, radius])
+                            sphere(r = radius);
+                        
+                        translate([x, y, inner_height - radius])
+                            sphere(r = radius);
+                    }
+                }
+            }
+        
+        // Top opening
+        translate([0, 0, height])
+            cube([width + 1, depth + 1, thickness + 1]);
+    }
+    
+    // Create lid if requested
+    if (include_lid) {
+        translate([width + 10, 0, 0])
+            box_lid(width, depth, thickness, radius);
+    }
+}
+
+// Helper module for the lid
+module box_lid(width, depth, thickness, radius) {
+    hull() {
+        for (x = [radius, width - radius]) {
+            for (y = [radius, depth - radius]) {
+                translate([x, y, radius])
+                    sphere(r = radius);
+                
+                translate([x, y, thickness - radius])
+                    sphere(r = radius);
+            }
+        }
+    }
+}
+```
